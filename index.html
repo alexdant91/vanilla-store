@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+
+    <button id="increment">Increment</button>
+    <button id="decrement">Decrement</button>
+    <div id="counter"></div>
+    <div>
+        <button id="clear-current">Clear current</button>
+        <pre id="current"></pre>
+    </div>
+    <div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Product Title</th>
+                    <th>Product Description</th>
+                    <th>Product Price</th>
+                    <th>#</th>
+                </tr>
+            </thead>
+            <tbody id="products"></tbody>
+        </table>
+    </div>
+    
+    <script src="./index.js"></script>
+    <script>
+        const store = new Store().setOptions({ useLocalStorage: true });
+
+        store.use({
+            name: "counter",
+            initialState: 0,
+        }, {
+            name: "user",
+            initialState: {
+                name: "John",
+                age: 20,
+            },
+        }, {
+            name: "products",
+            initialState: {
+                products: [],
+            },
+        }, {
+            name: "currentProduct",
+            initialState: {},
+        });
+
+        const { useIncrement, useDecrement } = store.registerAction({
+            type: "counter",
+            reducers: {
+                increment: (state, payload) => {
+                    state.counter += payload
+                },
+                decrement: (state, payload) => {
+                    state.counter -= payload
+                },
+            },
+        });
+
+        document.querySelector("#increment").addEventListener("click", () => {
+            store.dispatch("counter", useIncrement(1));
+        });
+
+        document.querySelector("#decrement").addEventListener("click", () => {
+            store.dispatch("counter", useDecrement(1));
+        });
+
+        document.querySelector("#clear-current").addEventListener("click", () => {
+            store.mutate("products", "current", (state) => {
+                state.current = null;
+
+                return state;
+            });
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelector("#counter").innerHTML = store.select((state) => state.counter);
+        });
+
+        const { useGetAllProducts, useGetProductById } = store.registerQuery({
+            type: "products",
+            host: "https://dummyjson.com",
+            endpoints: {
+                getAllProducts: ({ page }) => ({ query: `/products?page=${page}`, tagType: "all" }),
+                getProductById: ({ id }) => ({ query: `/product/${id}`, tagType: "current", cacheLogic: { id } }),
+            },
+        });
+
+        const { refetch: refetchProoduct } = useGetAllProducts({ page: 1 }, { selector: (data) => data.products, pollingInterval: 0 });
+
+        store.watch(["products", "counter"], ({ type, tagType, state }) => { 
+            if (type == "products" && tagType == "all") {
+                document.querySelector("#products").innerHTML = state.products.all.map((product) => {
+                    return `
+                        <tr>
+                            <td>${product.id}</td>
+                            <td>${product.title}</td>
+                            <td>${product.description}</td>
+                            <td>${product.price}</td>
+                            <td><button data-id="${product.id}" class="product">View</button></td>
+                        </tr>
+                    `;
+                }).join("");
+            } else if (type == "counter") {
+                document.querySelector("#counter").innerHTML = state.counter;
+            } else if (type == "products" && tagType == "current") {
+                if (state.products.current) document.querySelector("#current").innerHTML = JSON.stringify(state.products.current, null, 2);
+                else document.querySelector("#current").innerHTML = "";
+            }
+        });
+
+        document.addEventListener("click", (event) => {
+            if (event.target.classList.contains("product")) {
+                const id = event.target.dataset.id;
+                useGetProductById({ id });
+            }
+        })
+    </script>
+</body>
+</html>
