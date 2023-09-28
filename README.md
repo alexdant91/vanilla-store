@@ -7,6 +7,7 @@ Vanilla JS global store management, outside of any JS framework/library
 - [X] State reactivity;
 - [X] Callbacks;
 - [X] Cache logic;
+- [ ] Extend Cache control with version history system;
 - [X] Fetch Query logic;
 - [ ] Fetch Mutations logic;
 - [X] dispatch();
